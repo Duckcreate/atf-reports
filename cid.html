@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Звіт CID</title>
+<style>
+  body { background-color: #121212; color: #f5f5f5; font-family: Arial, sans-serif; margin:0; padding:0; }
+  header { background-color: #1f1f1f; text-align: center; padding: 20px 0; }
+  header img { height: 100px; margin-bottom: 10px; }
+  header h1 { margin: 0; font-size: 24px; color: #f5f5f5; }
+  form { max-width: 800px; margin: 30px auto; background-color: #1a1a1a; padding: 20px; border-radius: 12px; box-shadow: 0 0 10px #000; }
+  label { display: block; margin: 15px 0 5px; }
+  input, textarea { width: 100%; padding: 10px; border-radius: 6px; border: none; background-color: #2a2a2a; color: #f5f5f5; }
+  textarea { resize: vertical; }
+  .link-field { font-size: 12px; color: #aaa; margin-bottom: 10px; }
+  button { margin-top: 10px; padding: 10px; border: none; border-radius: 6px; background-color: #007acc; color: #fff; font-size: 14px; cursor: pointer; }
+  button:hover { background-color: #005fa3; }
+  #totalPoints { margin-top: 15px; font-size: 18px; text-align: center; color: #00ff00; }
+  .patrol-entry { margin-bottom: 10px; border: 1px solid #333; padding: 10px; border-radius: 6px; position: relative; }
+  .removePatrol { position: absolute; top: 5px; right: 5px; background-color: #cc0000; color: #fff; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; padding: 2px 6px; }
+  .invalid { border: 2px solid red; }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="https://i.imgur.com/wUCENWM.png" alt="Логотип CID/FIB">
+  <h1>Звіт CID</h1>
+</header>
+
+<form id="reportForm">
+  <label>Nick Name | Статичний ID</label>
+  <input type="text" id="agentNick" placeholder="Наприклад: Nick123 | 45678" required>
+
+  <label>⚖️ Кількість затримань</label>
+  <input type="number" id="arrests" min="0" value="0" required>
+  <div class="link-field">Посилання на скріни: <input type="url" id="arrestsLink" placeholder="https://"></div>
+
+  <label>🚔 Патрулі</label>
+  <div id="patrolsContainer"></div>
+  <button type="button" id="addPatrol">Додати патруль</button>
+
+  <label>💪 Кількість тренувань</label>
+  <input type="number" id="trainings" min="0" value="0">
+  <div class="link-field">Посилання на скріни: <input type="url" id="trainingsLink" placeholder="https://"></div>
+
+  <label>🔫 Участь в спец. операціях</label>
+  <input type="number" id="specialOps" min="0" value="0">
+  <div class="link-field">Посилання на скріни: <input type="url" id="specialOpsLink" placeholder="https://"></div>
+
+  <label>🎯 Участь у заходах (ВЗХ, ГРП...)</label>
+  <input type="number" id="events" min="0" value="0">
+  <div class="link-field">Посилання на скріни: <input type="url" id="eventsLink" placeholder="https://"></div>
+
+  <!-- Нові поля -->
+  <label>🕵️ Проведено допитів</label>
+  <input type="number" id="interrogations" min="0" value="0">
+  <div class="link-field">Посилання на скріни: <input type="url" id="interrogationsLink" placeholder="https://"></div>
+
+  <label>📁 Оформлено кейс-файлів</label>
+  <input type="number" id="caseFiles" min="0" value="0">
+  <div class="link-field">Посилання на скріни: <input type="url" id="caseFilesLink" placeholder="https://"></div>
+
+  <label>💼 Кількість контрольних закупок</label>
+  <input type="number" id="controlledBuys" min="0" value="0">
+  <div class="link-field">Посилання на скріни: <input type="url" id="controlledBuysLink" placeholder="https://"></div>
+
+  <label>📝 Додатково</label>
+  <textarea id="additional" rows="3"></textarea>
+
+  <div id="totalPoints">Загальні бали: 0</div>
+
+  <button type="submit">Надіслати звіт</button>
+</form>
+
+<script>
+const webhookURL = "https://discord.com/api/webhooks/1433882975816257698/cllTSVZt5b0eBh7tpcgGLAYqen7EEvT4K-VVsN63lhkeYaoKdzAHIdagrzb4C-nQIz9S";
+const jsonBinURL = "https://api.jsonbin.io/v3/b/6903a29aae596e708f385dea";
+let patrolCount = 0;
+
+const patrolsContainer = document.getElementById("patrolsContainer");
+const addPatrolBtn = document.getElementById("addPatrol");
+
+function addPatrol() {
+    patrolCount++;
+    const div = document.createElement("div");
+    div.className = "patrol-entry";
+    div.innerHTML = `
+        <button type="button" class="removePatrol">❌</button>
+        <label>Патруль №${patrolCount}</label>
+        Час початку: <input type="time" class="startTime" required>
+        Час закінчення: <input type="time" class="endTime" required>
+        <div class="link-field">Посилання на скріни: <input type="url" class="patrolLink" placeholder="https://"></div>
+    `;
+    patrolsContainer.appendChild(div);
+    div.querySelector(".removePatrol").addEventListener("click", () => {
+        div.remove();
+        calculatePoints();
+    });
+}
+addPatrolBtn.addEventListener("click", addPatrol);
+addPatrol();
+
+function calculatePoints() {
+    let points = 0;
+    points += Number(document.getElementById("arrests").value) * 5;
+    points += Number(document.getElementById("trainings").value) * 5;
+    points += Number(document.getElementById("specialOps").value) * 10;
+    points += Number(document.getElementById("events").value) * 10;
+    points += Number(document.getElementById("interrogations").value) * 5;
+    points += Number(document.getElementById("caseFiles").value) * 5;
+    points += Number(document.getElementById("controlledBuys").value) * 5;
+
+    const patrolEntries = document.querySelectorAll(".patrol-entry");
+    patrolEntries.forEach(entry => {
+        const start = entry.querySelector(".startTime").value;
+        const end = entry.querySelector(".endTime").value;
+        entry.querySelector(".startTime").classList.remove("invalid");
+        entry.querySelector(".endTime").classList.remove("invalid");
+        if(start && end){
+            const [sh, sm] = start.split(":").map(Number);
+            const [eh, em] = end.split(":").map(Number);
+            let duration = (eh*60 + em) - (sh*60 + sm);
+            if(duration > 0){
+                points += Math.floor(duration/30)*2;
+            } else {
+                entry.querySelector(".startTime").classList.add("invalid");
+                entry.querySelector(".endTime").classList.add("invalid");
+            }
+        }
+    });
+
+    document.getElementById("totalPoints").innerText = "Загальні бали: " + points;
+    return points;
+}
+document.getElementById("reportForm").addEventListener("input", calculatePoints);
+
+function sendToJsonBin(reportData){
+  fetch(jsonBinURL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(reportData)
+  })
+  .then(res => res.json())
+  .then(data => console.log("✅ Звіт збережено у JSONBin:", data))
+  .catch(err => console.error("❌ Помилка JSONBin:", err));
+}
+
+document.getElementById("reportForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    const totalPoints = calculatePoints();
+
+    const patrolEntries = document.querySelectorAll(".patrol-entry");
+    let patrolsText = "";
+    patrolEntries.forEach((entry,i)=>{
+        const start = entry.querySelector(".startTime").value;
+        const end = entry.querySelector(".endTime").value;
+        const link = entry.querySelector(".patrolLink").value;
+        patrolsText += `Патруль №${i+1}: ${start}-${end} (Посилання: ${link})\n`;
+    });
+
+    const reportData = {
+        username: "CID | Щотижневий звіт агента",
+        embeds:[{
+            title:"CID | Щотижневий звіт агента",
+            color:3447003,
+            fields:[
+                {name:"Nick | ID", value:document.getElementById("agentNick").value || "Nick | Statick", inline:true},
+                {name:"Кількість затримань", value:document.getElementById("arrests").value + " (Посилання: " + document.getElementById("arrestsLink").value + ")", inline:true},
+                {name:"Патрулі", value:patrolsText || "Немає", inline:false},
+                {name:"Кількість тренувань", value:document.getElementById("trainings").value + " (Посилання: " + document.getElementById("trainingsLink").value + ")", inline:true},
+                {name:"Участь в спец. операціях", value:document.getElementById("specialOps").value + " (Посилання: " + document.getElementById("specialOpsLink").value + ")", inline:true},
+                {name:"Участь у заходах", value:document.getElementById("events").value + " (Посилання: " + document.getElementById("eventsLink").value + ")", inline:true},
+                {name:"Проведено допитів", value:document.getElementById("interrogations").value + " (Посилання: " + document.getElementById("interrogationsLink").value + ")", inline:true},
+                {name:"Оформлено кейс-файлів", value:document.getElementById("caseFiles").value + " (Посилання: " + document.getElementById("caseFilesLink").value + ")", inline:true},
+                {name:"Контрольні закупки", value:document.getElementById("controlledBuys").value + " (Посилання: " + document.getElementById("controlledBuysLink").value + ")", inline:true},
+                {name:"Додатково", value:document.getElementById("additional").value},
+                {name:"Загальні бали", value:totalPoints.toString()}
+            ],
+            timestamp:new Date().toISOString()
+        }]
+    };
+
+    fetch(webhookURL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(reportData)
+    }).then(resp=>{
+        if(resp.ok) alert("Звіт успішно надіслано!");
+        else alert("Помилка при відправці Discord.");
+    }).catch(err=>alert("Помилка Discord: "+err));
+
+    const gsData = {
+        nick: document.getElementById("agentNick").value,
+        arrests: Number(document.getElementById("arrests").value),
+        patrols: Array.from(document.querySelectorAll(".patrol-entry")).map(e=>({
+            start:e.querySelector(".startTime").value,
+            end:e.querySelector(".endTime").value,
+            link:e.querySelector(".patrolLink").value
+        })),
+        trainings: Number(document.getElementById("trainings").value),
+        specialOps: Number(document.getElementById("specialOps").value),
+        events: Number(document.getElementById("events").value),
+        interrogations: Number(document.getElementById("interrogations").value),
+        caseFiles: Number(document.getElementById("caseFiles").value),
+        controlledBuys: Number(document.getElementById("controlledBuys").value),
+        additional: document.getElementById("additional").value,
+        totalPoints: totalPoints,
+        date: new Date().toISOString()
+    };
+    sendToJsonBin(gsData);
+
+    document.getElementById("reportForm").reset();
+    patrolsContainer.innerHTML = "";
+    patrolCount = 0;
+    addPatrol();
+    calculatePoints();
+});
+</script>
+
+</body>
+</html>
